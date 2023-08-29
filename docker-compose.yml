@@ -1,0 +1,65 @@
+version: '3'
+
+services:
+  influxdb:
+    image: influxdb:2.6-alpine
+    container_name: influxdb
+    restart: always
+    env_file:
+      - influxv2.env
+    volumes:
+      # Mount for influxdb data directory and configuration
+      # - ./scripts:/docker-entrypoint-initdb.d
+      - influxdb_config:/etc/influxdb2
+      - influxdb_data:/var/lib/influxdb2
+
+    ports:
+      - "8086:8086"
+    networks:
+     - grafana-influxdb-network
+
+  grafana:
+    image: grafana/grafana
+    container_name: grafana-server
+    restart: always
+    depends_on:
+      - influxdb
+    volumes:
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    env_file:
+      - 'grafana.env'
+    links:
+      - influxdb
+    networks:
+      - grafana-influxdb-network
+
+  telegraf:
+    image: telegraf:alpine
+    container_name: telegraf
+    restart: always
+    volumes:
+    # Mount for telegraf config
+    - ./telegraf.conf:/etc/telegraf/telegraf.conf:ro
+    depends_on:
+      - influxdb
+    links:
+      - influxdb
+    ports:
+      - '8125:8125'
+    env_file:
+      - 'telegraf.env'
+    networks:
+     - telegraf-influxdb-network  
+
+networks:
+  grafana-influxdb-network:
+    driver: bridge
+  telegraf-influxdb-network:
+    driver: bridge
+
+volumes:
+  grafana_data: {}
+  influxdb_data: {}    
+  influxdb_config: {}
